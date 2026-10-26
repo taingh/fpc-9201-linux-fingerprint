@@ -1,0 +1,38 @@
+# Upstream revisions vendored into this archive.
+
+fingerprint-ocv
+  url: https://github.com/vrolife/fingerprint-ocv
+  commit: 7691977ca8d28050f95a42454880b572ce7f9d5e
+  date: 2022-12-04T06:25:00Z
+  subject: Remove openssl libusb dbus from vcpkg.json
+  path: src/fingerprint-ocv/
+  license: AGPL-3.0 (LICENSE kept in-tree and copied to /LICENSE)
+
+submodules pinned by 7691977ca8d28050f95a42454880b572ce7f9d5e and included:
+  asyncdbus 62c2c87092c7674fcd3ec98573a2a436bfff9d83
+    https://github.com/vrolife/asyncdbus
+    2022-10-04 asyncdbus-v2, AGPL-3.0
+  asyncusb d9e29478037123cfff8f009d7112250c4b2fd3df
+    https://github.com/vrolife/asyncusb
+    2022-10-04 asyncusb-v2, AGPL-3.0
+  jinx 154366c25a0b8c3f531c37efbfffa4934a138523
+    https://github.com/vrolife/jinx
+    2022-10-03 argparse apply default value for type bool
+    LICENSE at this commit is AGPL-3.0
+
+submodule pinned by that commit and not vendored:
+  vcpkg 163fe7bd3d67c41200617caaa245b5ba2ba854e6
+    https://github.com/microsoft/vcpkg
+    2022-12-02 [brotli] Export libm usage requirement, cleanup, usage (#27971)
+    MIT third-party package manager (large). Not snapshotted.
+    OpenCV (Apache-2.0) is statically linked into bin/fingerpp3.static.
+    vcpkg downloads that OpenCV source at build time; it is not in this tree.
+    Reinstalling the tested binary does not require rebuilding.
+
+prebuilt binaries, upstream/install.sh, upstream/fprintd-override.service
+  url: https://github.com/vrolife/modern_laptop
+  commit: cc4db790f91c7f5ac76e9160ddc9a754ff2ca5e9
+  date: 2023-11-25T14:35:58Z
+  path: drivers/fingerprint/
+  tested binary: bin/fingerpp3.static
+  sha256: 4e9a3b8d71bb818ceb5b4fa6b16cbfa5b1619afd1eba548cda723396c94e5f8c

@@ -1,0 +1,6 @@
+# SHA256 checksums. From the repo root: sha256sum -c SHA256SUMS
+4e9a3b8d71bb818ceb5b4fa6b16cbfa5b1619afd1eba548cda723396c94e5f8c  bin/fingerpp3.static
+804b97d385509d80f8ba1141a85a886d2ed27c2fcbba0619298292081a5c417b  bin/fingerpp3.fedora
+f751fe2109ed49d2027ceafa352ca7916190cab1a61cf3ecad9b8f38db6152cf  bin/fingerpp3.ubuntu2210
+a56c6c35a4c91144a04967179f333704d264ae29c2ff17fd261c61744281af76  upstream/install.sh
+423f5d95bb50f1a95d62708c0ab284816cfe9566313ba703e97553c2cc1f9fd6  upstream/fprintd-override.service
