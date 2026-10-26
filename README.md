@@ -36,6 +36,7 @@ lsusb -d 10a5:9201
 | `install.sh`、`uninstall.sh` | 本仓库的安装和卸载脚本，可重复执行。 |
 | `extras/fingerpp-sleep.service` | 休眠前停掉 fprintd、唤醒后再启动的 systemd 单元。 |
 | `extras/reapply-kde-lockscreen.sh` | 给 KDE 锁屏打指纹补丁的脚本，可重复执行。安装后路径是 `/usr/local/sbin/fingerpp-reapply-kde-lockscreen`。 |
+| `extras/test-reapply-kde-lockscreen.sh`、`extras/testdata/` | 锁屏补丁的夹具测试。覆盖 Plasma 6.6、6.7.5，以及只剩 `id: root` 时的退路。 |
 | `extras/fingerpp-plasma-desktop.actions` | Fedora dnf5 的 libdnf5 actions 钩子。`plasma-desktop` 装上或升级后重打锁屏补丁。 |
 | `extras/99fingerpp-lockscreen` | Ubuntu / Kubuntu 的 apt `DPkg::Post-Invoke` 钩子，作用同上。 |
 | `upstream/` | 上游 `install.sh` 和 `fprintd-override.service` 的原样副本。 |
@@ -141,7 +142,7 @@ auth    sufficient    pam_fprintd.so
 
 ## 休眠崩溃和 KDE 锁屏
 
-这两项在 Fedora 44 KDE（Plasma 6.6.4，包版本 `plasma-desktop-6.6.4-1.fc44`）上手工验证过。`install.sh` 会把同样的做法装进去。
+休眠钩子在 Fedora 44 KDE（Plasma 6.6.4，`plasma-desktop-6.6.4-1.fc44`）上手工验证过。锁屏补丁同一台机器升到 `plasma-desktop` 6.7.5 之后又对过一次。`install.sh` 会把同样的做法装进去。
 
 ### 休眠：`transfer no device`
 
@@ -164,18 +165,25 @@ systemctl cat fingerpp-sleep.service
 
 ### KDE 锁屏：要点一下才开始指纹
 
-KDE bug [469810](https://bugs.kde.org/show_bug.cgi?id=469810)。锁屏在时钟界面时不会调用 `authenticator.startAuthenticating()`，要等按键或鼠标移动把界面唤醒。上游合并请求是 [plasma-desktop!3891](https://invent.kde.org/plasma/plasma-desktop/-/merge_requests/3891) 和 [kscreenlocker!352](https://invent.kde.org/plasma/kscreenlocker/-/merge_requests/352)。Plasma 6.6.4 的发行版包还没有这份修复。kscreenlocker 会在锁定真正生效时（手动锁定是立刻，空闲锁定要等宽限期结束）给主题根对象写 `locked`；主题里没有这个属性时，写入会被丢掉。
+KDE bug [469810](https://bugs.kde.org/show_bug.cgi?id=469810)。锁屏在时钟界面时不会调用 `authenticator.startAuthenticating()`，要等按键或鼠标移动把界面唤醒。上游合并请求是 [plasma-desktop!3891](https://invent.kde.org/plasma/plasma-desktop/-/merge_requests/3891) 和 [kscreenlocker!352](https://invent.kde.org/plasma/kscreenlocker/-/merge_requests/352)。Plasma 6.6.4 和 6.7.5 的发行版包都还没有这份修复。kscreenlocker 会在锁定真正生效时（手动锁定是立刻，空闲锁定要等宽限期结束）给主题根对象写 `locked`；主题里没有这个属性时，写入会被丢掉。
 
-`install.sh` 在下面这个文件存在，并且里面有锚点行 `    property bool suspendToDiskSupported: false` 时，把补丁插在该行后面，原文件备份为同路径的 `LockScreen.qml.bak`：
+`install.sh` 在下面这个文件存在时打补丁，原文件备份为同路径的 `LockScreen.qml.bak`：
 
 `/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreen.qml`
+
+锚点按顺序用第一条对得上的整行，补丁插在它后面：
+
+1. `    property bool viewVisible: false`。Plasma 6.6 和 6.7.5 的根对象都有这行，优先用它。
+2. `    id: root`。上一行也没有时的退路。
+
+Plasma 6.7.5 删掉了 `suspendToRam` / `suspendToDisk` 属性和对应信号，6.6 里那行 `    property bool suspendToDiskSupported: false` 已经不在文件中。6.7.5 的根对象在 `    // These are magical properties that kscreenlocker looks for` 后面只剩 `    property bool viewVisible: false`。这一版仍然没有声明 `property bool locked`，`LockScreenUi.qml` 也仍然只在 `onUiVisibleChanged` 和 `graceLockTimer` 里调用 `authenticator.startAuthenticating()`，所以补丁还要打。6.7.5 上把同一段补丁插在 `viewVisible` 那一行后面，不按键、不动鼠标也会开始指纹认证。
 
 补丁声明 `property bool locked`，锁定生效后过 1.5 秒调用 `authenticator.startAuthenticating()`。非交互认证（指纹，`onFailed` 的 `kind != 0`）结束且屏幕仍锁着时，再排一次同样的定时器。标记字符串是 `fpArmTimer`。已经有这个标记就跳过，不会把 `.bak` 盖成打过补丁的文件。
 
 下面这些情况也跳过，退出码仍是 0，安装继续：
 
 - 没有这个 QML 文件（不是 KDE，或 Plasma 壳不在默认路径）。安装时会打印一句说明。
-- 文件在，但没有那一行锚点（别的 Plasma 版本）。脚本会打印文件路径和它在找的那一行。
+- 文件在，但上面两行锚点都不在。脚本会打印文件路径和找过的每一行。
 - 文件里已经有 `property bool locked`（上游补丁已经进了这个包）。再插一次会变成重复属性，锁屏会坏，所以留着不动。
 
 `plasma-desktop` 升级会用包里的原文件盖掉 `LockScreen.qml`。装好之后有两条自动重打的路：

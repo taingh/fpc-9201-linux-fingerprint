@@ -2,7 +2,7 @@
 # Apply or revert the KDE lock screen fingerprint workaround.
 #
 # Idempotent: if "fpArmTimer" is already present, do nothing.
-# If LockScreen.qml or the anchor line is missing, skip (exit 0).
+# If LockScreen.qml is missing, or none of the anchor lines is present, skip (exit 0).
 # Messages go to stderr. dnf's libdnf5 actions plugin parses stdout.
 #
 # FINGERPP_LOCKSCREEN_QML overrides the QML path and skips the root check.
@@ -11,8 +11,15 @@ set -euo pipefail
 
 readonly DEFAULT_QML=/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreen.qml
 readonly MARKER='fpArmTimer'
-# Exact line from Plasma 6.6 LockScreen.qml (4-space indent).
-readonly ANCHOR='    property bool suspendToDiskSupported: false'
+# First match wins. Lines are exact, including the 4-space indent used by
+# plasma-desktop's LockScreen.qml.
+# viewVisible is on the root Item in Plasma 6.6 and 6.7 (6.7.5 removed
+# suspendToRam / suspendToDisk). id: root is the last resort.
+readonly -a ANCHORS=(
+  '    property bool viewVisible: false'
+  '    id: root'
+)
+chosen_anchor=""
 
 verbose=0
 restore=0
@@ -89,6 +96,18 @@ resolve_qml() {
   qml="${resolved}"
 }
 
+# Sets chosen_anchor to the first ANCHORS line present in the file.
+pick_anchor() {
+  local candidate
+  for candidate in "${ANCHORS[@]}"; do
+    if grep -F -x -q -e "${candidate}" -- "${qml}"; then
+      chosen_anchor="${candidate}"
+      return 0
+    fi
+  done
+  return 1
+}
+
 insert_patch() {
   cat <<'EOF'
     // fingerprint patch: start authentication as soon as the lock is effective,
@@ -133,10 +152,13 @@ apply_patch() {
     exit 0
   fi
 
-  if ! grep -F -x -q -e "${ANCHOR}" -- "${qml}"; then
+  if ! pick_anchor; then
     say "KDE lock screen has no anchor line; skipping fingerprint patch."
     say "  file: ${qml}"
-    say "  looked for: ${ANCHOR}"
+    local candidate
+    for candidate in "${ANCHORS[@]}"; do
+      say "  looked for: ${candidate}"
+    done
     exit 0
   fi
 
@@ -144,7 +166,7 @@ apply_patch() {
   local inserted=0
   while IFS= read -r line || [[ -n "${line}" ]]; do
     printf '%s\n' "${line}"
-    if [[ "${inserted}" -eq 0 && "${line}" == "${ANCHOR}" ]]; then
+    if [[ "${inserted}" -eq 0 && "${line}" == "${chosen_anchor}" ]]; then
       insert_patch
       inserted=1
     fi
