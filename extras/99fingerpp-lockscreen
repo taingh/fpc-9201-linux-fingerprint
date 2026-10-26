@@ -1,0 +1,5 @@
+// fingerpp: re-apply the KDE lock screen fingerprint patch after dpkg.
+// plasma-desktop updates replace LockScreen.qml. The script is idempotent.
+// It is only started when that file exists, so non-KDE systems stay quiet.
+// A failure must not abort apt.
+DPkg::Post-Invoke { "if [ -x /usr/local/sbin/fingerpp-reapply-kde-lockscreen ] && [ -f /usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreen.qml ]; then /usr/local/sbin/fingerpp-reapply-kde-lockscreen || true; fi"; };

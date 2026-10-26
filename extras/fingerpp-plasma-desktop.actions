@@ -1,0 +1,14 @@
+# Re-apply the KDE lock screen fingerprint patch after plasma-desktop is
+# installed or upgraded (the package overwrites LockScreen.qml).
+#
+# libdnf5 actions format (actions.8):
+#   callback_name:package_filter:direction:options:command
+# package_filter is matched against the package NEVRA and its shortened forms
+# (name, and so on) via resolve_pkg_spec. direction "in" is a package coming
+# onto the system: install, upgrade, reinstall, or downgrade.
+# post_transaction runs after the rpm transaction, so the new QML is in place.
+# The command's stdout is parsed as actions-plugin directives; the script
+# writes its messages to stderr. --verbose is safe here because this line
+# runs only when plasma-desktop is in the transaction, not on every dnf run.
+# https://dnf5.readthedocs.io/en/latest/libdnf5_plugins/actions.8.html
+post_transaction:plasma-desktop:in::/usr/local/sbin/fingerpp-reapply-kde-lockscreen --verbose
